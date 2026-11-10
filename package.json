@@ -1,0 +1,1 @@
+{"name":"ee582-channel-lab","version":"0.1.0","private":true,"scripts":{"test":"node --test tests/model.test.cjs"},"description":"Buildless educational Wi-Fi channel selection simulator"}
