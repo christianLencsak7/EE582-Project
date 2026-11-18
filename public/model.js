@@ -17,6 +17,56 @@ const overlap=(c,n)=>Math.max(0,1-Math.abs(c-n)/5);
 const power=rssi=>10**((rssi+50)/10);
 const close=(a,b)=>Math.abs(a-b)<=1e-12*Math.max(1,Math.abs(a),Math.abs(b));
 function analyze(networks,current=1){validate(networks,current);const scores=candidates.map(channel=>({channel,score:networks.reduce((s,n)=>s+power(n.rssi)*overlap(channel,n.channel),0)}));const best=Math.min(...scores.map(s=>s.score));const minima=scores.filter(s=>close(s.score,best)).map(s=>s.channel);const selected=minima.includes(current)?current:minima[0];const currentScore=scores.find(s=>s.channel===current).score;const selectedScore=scores.find(s=>s.channel===selected).score;return{scores,minima,selected,currentScore,best,selectedScore,reduction:currentScore>0?Math.max(0,100*(currentScore-selectedScore)/currentScore):null};}
-function csv(networks,current){const a=analyze(networks,current);const cell=v=>'"'+String(v).replaceAll('"','""')+'"';const safeName=s=>/^[=+@\-\t\r]/.test(s)?"'"+s:s;return [['type','name','channel','rssi_dBm','model_score'],...networks.map((n,i)=>['neighbor',safeName(String(n.name||`Network ${i+1}`)),n.channel,n.rssi,'']),...a.scores.map(s=>['candidate','',s.channel,'',s.score]),['current','',current,'',a.currentScore],['recommended','',a.selected,'',a.selectedScore]].map(row=>row.map(cell).join(',')).join('\r\n');}
-const api={candidates,presets,validate,overlap,power,analyze,csv};root.WifiModel=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+// A comparison owns its inputs and results; live edits never recalculate it.
+function createComparison(networks,current){
+ const a=analyze(networks,current);
+ return {beforeChannel:current,afterChannel:a.selected,beforeScore:a.currentScore,
+  afterScore:a.selectedScore,absoluteReduction:Math.max(0,a.currentScore-a.selectedScore),
+  percentReduction:a.reduction,minima:[...a.minima],scores:a.scores.map(s=>({...s})),
+  networks:networks.map(n=>({name:String(n.name??''),channel:n.channel,rssi:n.rssi}))};
+}
+function applyRecommendation(state){
+ const comparison=createComparison(state.networks,state.current);
+ // In particular, don't replace a useful saved comparison on a repeated click.
+ if(comparison.afterChannel===state.current)return state;
+ return {...state,current:comparison.afterChannel,comparison};
+}
+function presetState(key){
+ if(!Object.hasOwn(presets,key))throw new Error('Unknown scenario.');
+ const p=presets[key];
+ return {current:p.current,networks:p.networks.map(n=>({...n})),comparison:null};
+}
+const clearComparison=state=>({...state,comparison:null});
+function snapshotMatches(comparison,networks){
+ return comparison.networks.length===networks.length&&comparison.networks.every((n,i)=>
+  n.name===String(networks[i].name??'')&&n.channel===networks[i].channel&&n.rssi===networks[i].rssi);
+}
+function csv(networks,current,comparison=null){
+ const a=analyze(networks,current);
+ const cell=v=>'"'+String(v).replaceAll('"','""')+'"';
+ // Quote CSV syntax separately from spreadsheet formula protection, including leading whitespace.
+ const safeName=s=>/^[\s]*[=+@-]|^[\t\r\n]/.test(s)?"'"+s:s;
+ const neighbors=(items,prefix)=>items.map(n=>[prefix+'neighbor',safeName(String(n.name??'')),n.channel,n.rssi,'']);
+ const rows=[['type','name','channel','rssi_dBm','model_score'],
+  ['metadata','Channel Lab triangular model v1; relative units, not speed or measured interference','','',''],
+  ['metadata','20 MHz; 2.4 GHz; one observation point; synthetic inputs','','',''],
+  ['metadata','overlap=max(0,1-abs(candidate-neighbor)/5); power=10^((rssi+50)/10); score=sum(power*overlap)','','',''],
+  ['metadata','Names starting with spreadsheet formula/control characters are prefixed with an apostrophe; blank names are preserved.','','',''],
+  ['section','CURRENT SCENARIO','','',''],...neighbors(networks,''),
+  ...a.scores.map(s=>['candidate','',s.channel,'',s.score]),
+  ['current','',current,'',a.currentScore],['recommended','',a.selected,'',a.selectedScore],
+  ['minima',a.minima.join(' / '),'','','']];
+ if(comparison){
+  rows.push(['section','SAVED COMPARISON — inputs at application time','','',''],
+   ...neighbors(comparison.networks,'saved_'),
+   ...comparison.scores.map(s=>['saved_candidate','',s.channel,'',s.score]),
+   ['saved_before','',comparison.beforeChannel,'',comparison.beforeScore],
+   ['saved_applied','',comparison.afterChannel,'',comparison.afterScore],
+   ['saved_absolute_reduction','relative model units','','',comparison.absoluteReduction],
+   ['saved_percent_reduction','percent model score reduction, not speed','','',comparison.percentReduction??'not applicable'],
+   ['saved_minima',comparison.minima.join(' / '),'','','']);
+ }
+ return rows.map(row=>row.map(cell).join(',')).join('\r\n');
+}
+const api={candidates,presets,validate,overlap,power,analyze,createComparison,applyRecommendation,presetState,clearComparison,snapshotMatches,csv};root.WifiModel=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(globalThis);

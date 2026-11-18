@@ -36,3 +36,8 @@ Planning estimates, not course requirements: Week 1 about 4–6 hours, Week 2 ab
 
 ## Progress rules
 Record actual work dates and commits. Future work remains planned until implemented and checked. Keep Draft 1/2/3 and final as separate snapshots. Nothing in this plan schedules automatic work or submits to Canvas.
+
+
+## Actual progress adjustment - November 17, 2026
+
+The timetable above is the original plan, not a claim that tasks were completed on those dates. The prototype already had visualization, presets and CSV when inspected. The November 17 update delivered the saved before/after comparison, explanations, chart/accessibility refinements and broader tests in support of Draft 2, whose listed milestone was November 16. See DRAFT2_PROGRESS.md for actual evidence and pending browser checks. No submission was made or backdated. Before Draft 3 on November 23, prioritize browser validation, screenshots and a separately authorized deployment. Final slides remain due November 30; the PowerPoint is unchanged in this task.
